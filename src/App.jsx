@@ -2,24 +2,79 @@ import { useState } from 'react'
 
 export default function App() {
   const [todos, setTodos] = useState([
-    { id: 1, text: 'Read a book', done: false },
-    { id: 2, text: 'Go for a walk', done: true },
-    { id: 3, text: 'Write some code', done: false },
+    { id: 1, text: 'Read a book', done: false, dueDate: '' },
+    { id: 2, text: 'Go for a walk', done: true, dueDate: '' },
+    { id: 3, text: 'Write some code', done: false, dueDate: '' },
   ])
+
   const [input, setInput] = useState('')
+  const [dueDateInput, setDueDateInput] = useState('')
   const [filter, setFilter] = useState('all')
+
+  const [editingId, setEditingId] = useState(null)
+  const [editText, setEditText] = useState('')
+  const [editDueDate, setEditDueDate] = useState('')
 
   const addTodo = () => {
     const text = input.trim()
     if (!text) return
-    setTodos([...todos, { id: Date.now(), text, done: false }])
+
+    setTodos([
+      ...todos,
+      {
+        id: Date.now(),
+        text,
+        done: false,
+        dueDate: dueDateInput,
+      },
+    ])
+
     setInput('')
+    setDueDateInput('')
   }
 
   const toggleTodo = (id) =>
     setTodos(todos.map((t) => (t.id === id ? { ...t, done: !t.done } : t)))
 
   const deleteTodo = (id) => setTodos(todos.filter((t) => t.id !== id))
+
+  const startEditing = (todo) => {
+    setEditingId(todo.id)
+    setEditText(todo.text)
+    setEditDueDate(todo.dueDate || '')
+  }
+
+  const saveEdit = (id) => {
+    const text = editText.trim()
+
+    if (!text) {
+      deleteTodo(id)
+    } else {
+      setTodos(
+        todos.map((t) =>
+          t.id === id ? { ...t, text, dueDate: editDueDate } : t,
+        ),
+      )
+    }
+
+    setEditingId(null)
+    setEditText('')
+    setEditDueDate('')
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditText('')
+    setEditDueDate('')
+  }
+
+  const handleEditKeyDown = (e, id) => {
+    if (e.key === 'Enter') {
+      saveEdit(id)
+    } else if (e.key === 'Escape') {
+      cancelEdit()
+    }
+  }
 
   const visible = todos.filter((t) =>
     filter === 'active' ? !t.done : filter === 'completed' ? t.done : true,
@@ -39,21 +94,31 @@ export default function App() {
       <div className="w-full max-w-md bg-white rounded-xl shadow-md p-6">
         <h1 className="text-2xl font-bold text-slate-800 mb-4">Todo List</h1>
 
-        <div className="flex gap-2 mb-4">
+        <div className="flex flex-col gap-2 mb-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addTodo()}
+              placeholder="What needs doing?"
+              className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+
+            <button
+              onClick={addTodo}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700 transition"
+            >
+              Add
+            </button>
+          </div>
+
           <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addTodo()}
-            placeholder="What needs doing?"
-            className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            type="date"
+            value={dueDateInput}
+            onChange={(e) => setDueDateInput(e.target.value)}
+            className="px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          <button
-            onClick={addTodo}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md font-medium hover:bg-indigo-700 transition"
-          >
-            Add
-          </button>
         </div>
 
         <div className="flex gap-2 mb-4">
@@ -63,7 +128,10 @@ export default function App() {
           <button onClick={() => setFilter('active')} className={tabClass('active')}>
             Active
           </button>
-          <button onClick={() => setFilter('completed')} className={tabClass('completed')}>
+          <button
+            onClick={() => setFilter('completed')}
+            className={tabClass('completed')}
+          >
             Completed
           </button>
         </div>
@@ -74,14 +142,44 @@ export default function App() {
               key={todo.id}
               className="flex items-center gap-3 px-3 py-2 rounded-md border border-slate-200 hover:bg-slate-50"
             >
-              <button
-                onClick={() => toggleTodo(todo.id)}
-                className={`flex-1 text-left ${
-                  todo.done ? 'line-through text-slate-400' : 'text-slate-800'
-                }`}
-              >
-                {todo.text}
-              </button>
+              {editingId === todo.id ? (
+                <div className="flex-1 flex flex-col gap-2">
+                  <input
+                    type="text"
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onKeyDown={(e) => handleEditKeyDown(e, todo.id)}
+                    onBlur={() => saveEdit(todo.id)}
+                    autoFocus
+                    className="px-2 py-1 border border-indigo-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    onKeyDown={(e) => handleEditKeyDown(e, todo.id)}
+                    className="px-2 py-1 border border-indigo-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => toggleTodo(todo.id)}
+                  onDoubleClick={() => startEditing(todo)}
+                  className={`flex-1 text-left ${
+                    todo.done ? 'line-through text-slate-400' : 'text-slate-800'
+                  }`}
+                >
+                  <span>{todo.text}</span>
+
+                  {todo.dueDate && (
+                    <span className="ml-2 text-xs text-slate-500">
+                      Due: {todo.dueDate}
+                    </span>
+                  )}
+                </button>
+              )}
+
               <button
                 onClick={() => deleteTodo(todo.id)}
                 className="text-slate-400 hover:text-red-500 text-lg font-bold px-2"
@@ -91,6 +189,7 @@ export default function App() {
               </button>
             </li>
           ))}
+
           {visible.length === 0 && (
             <li className="text-center text-slate-400 py-4 text-sm">
               Nothing here.
